@@ -36,12 +36,15 @@ Dentro do painel há o botão **Copiar link**, que copia o endereço da pessoa a
 
 ## Atualizar a base
 
-1. Substitua `Dividas.xlsx` (mesmas colunas: DATA, LOCAL, DESCRIÇÃO, VALOR, DESC CONTA, CLASSIFICAÇÃO, PACOTE, RESPONSÁVEL).
-2. Rode `pip install openpyxl` (uma vez) e depois `python gerar_dados.py`.
-3. Envie o novo `assets/dados.js` para o GitHub.
+Basta substituir o `Dividas.xlsx` no repositório (mesmo nome, mesmas colunas: DATA, LOCAL,
+DESCRIÇÃO, VALOR, DESC CONTA, CLASSIFICAÇÃO, PACOTE, RESPONSÁVEL). A página lê a planilha
+direto (`assets/xlsx.js`); o GitHub Pages leva cerca de 1 minuto para publicar a troca.
 
-Valores negativos são convertidos em positivos. As categorias exibidas são definidas no
-dicionário `CATEGORIAS` em `gerar_dados.py` (classificação nova sem mapeamento aparece com o próprio nome).
+`assets/dados.js` é só uma cópia de segurança, usada quando a página é aberta como arquivo
+local (duplo clique). Para atualizá-la: `pip install openpyxl` e `python gerar_dados.py`.
+
+Valores negativos são convertidos em positivos. As categorias exibidas ficam no dicionário
+`CATEGORIAS` de `assets/xlsx.js` (classificação nova sem mapeamento aparece com o próprio nome).
 
 ## Configuração do PIX
 

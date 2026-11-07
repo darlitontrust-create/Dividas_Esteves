@@ -1,4 +1,4 @@
-// Gerado automaticamente por gerar_dados.py em 07/11/2026 16:04
+// Gerado automaticamente por gerar_dados.py em 07/11/2026 17:00
 window.DIVIDAS = [
  {
   "id": 1,

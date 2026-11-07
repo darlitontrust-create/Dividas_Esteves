@@ -345,6 +345,7 @@
 <div id="aviso" class="aviso" role="status" aria-live="polite"></div>
 
 <script src="assets/dados.js"></script>
+<script src="assets/xlsx.js"></script>
 <script src="assets/qrcode.js"></script>
 <script src="assets/pix.js"></script>
 <script>
@@ -357,15 +358,19 @@
     chaveExibicao: '(31) 97148-0692',
     nomeRecebedor: 'ESTEVES',          // até 25 caracteres, sem acento
     cidadeRecebedor: 'RIBEIRAO NEVES', // até 15 caracteres, sem acento
-    ocultarPessoas: []                 // ex.: ['DARLITON'] para não listar alguém na tela inicial
+    ocultarPessoas: [],                // ex.: ['DARLITON'] para não listar alguém na tela inicial
+    arquivoBase: 'Dividas.xlsx'        // planilha lida pela página (mesmo nome no repositório)
   };
 
   var MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   var MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
-  var dados = (window.DIVIDAS || []).map(function (d) {
-    return Object.assign({}, d, { valor: Math.abs(Number(d.valor) || 0) });
-  });
+  var dados = [];
+  function prepararDados(lista) {
+    dados = (lista || []).map(function (d) {
+      return Object.assign({}, d, { valor: Math.abs(Number(d.valor) || 0) });
+    });
+  }
 
   var estado = { pessoa: null, itens: [], marcados: new Set(), modo: 'categoria', fechados: new Set() };
   var $ = function (id) { return document.getElementById(id); };
@@ -398,9 +403,12 @@
   }
 
   // ===== Tela de entrada =====
-  var pessoas = Array.from(new Set(dados.map(function (d) { return d.pessoa; })))
-    .filter(function (p) { return CONFIG.ocultarPessoas.indexOf(p) < 0; })
-    .sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+  var pessoas = [];
+  function listarPessoas() {
+    pessoas = Array.from(new Set(dados.map(function (d) { return d.pessoa; })))
+      .filter(function (p) { return CONFIG.ocultarPessoas.indexOf(p) < 0; })
+      .sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+  }
 
   function desenharNomes(filtro) {
     var f = slug(filtro || '');
@@ -598,7 +606,16 @@
     if (p) abrirPessoa(p, false); else voltarEntrada(false);
   }
   window.addEventListener('popstate', rotear);
-  rotear();
+
+  // Lê a base direto do Dividas.xlsx; se não conseguir (ex.: aberto como arquivo local), usa assets/dados.js
+  function iniciar(lista) { prepararDados(lista); listarPessoas(); rotear(); }
+  $('grade-nomes').innerHTML = '<div class="vazio">Carregando…</div>';
+  PLANILHA.carregarDividas(CONFIG.arquivoBase + '?v=' + Date.now())
+    .then(iniciar)
+    .catch(function (erro) {
+      console.warn('Usando assets/dados.js:', erro.message);
+      iniciar(window.DIVIDAS);
+    });
 })();
 </script>
 </body>
