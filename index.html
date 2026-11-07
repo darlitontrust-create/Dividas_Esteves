@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Central de Pagamentos · Esteves</title>
+<meta name="theme-color" content="#0a0d14">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0d14;
+    --text: #e9edf4;
+    --muted: #98a3b6;
+    --faint: #6b7588;
+    --accent: #a9bfe0;
+    --accent-strong: #d3def0;
+    --ok: #93c9ab;
+    --glass: rgba(255, 255, 255, 0.055);
+    --glass-strong: rgba(255, 255, 255, 0.085);
+    --stroke: rgba(255, 255, 255, 0.11);
+    --stroke-soft: rgba(255, 255, 255, 0.06);
+    --radius: 22px;
+    --radius-sm: 14px;
+    --shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.6);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'tnum' 1;
+  }
+  /* Fundo com manchas suaves para o efeito vidro */
+  .fundo { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+  .fundo span { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .55; }
+  .fundo span:nth-child(1) { width: 52vmax; height: 52vmax; left: -14vmax; top: -18vmax; background: #3b4f78; }
+  .fundo span:nth-child(2) { width: 42vmax; height: 42vmax; right: -12vmax; top: 18vh; background: #5a4a6e; opacity: .4; }
+  .fundo span:nth-child(3) { width: 46vmax; height: 46vmax; left: 20vw; bottom: -26vmax; background: #2f5a5e; opacity: .38; }
+  .fundo::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 0%, rgba(10,13,20,.55) 100%);
+  }
+
+  .vidro {
+    background: var(--glass);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius);
+    backdrop-filter: blur(22px) saturate(140%);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .oculto { display: none !important; }
+
+  /* ---------- Tela de seleção ---------- */
+  #tela-entrada {
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 40px 20px 60px; gap: 26px;
+  }
+  .marca { text-align: center; }
+  .marca img { width: 170px; height: auto; filter: drop-shadow(0 12px 30px rgba(0,0,0,.45)); }
+  .marca h1 { margin: 18px 0 6px; font-size: clamp(24px, 4vw, 32px); font-weight: 800; letter-spacing: -.02em; }
+  .marca p { margin: 0; color: var(--muted); font-size: 15px; }
+  .cartao-nomes { width: min(560px, 100%); padding: 22px; }
+  .cartao-nomes label { display: block; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin: 0 4px 12px; }
+  .busca {
+    width: 100%; padding: 13px 16px; border-radius: var(--radius-sm); border: 1px solid var(--stroke);
+    background: rgba(0,0,0,.18); color: var(--text); font: inherit; font-size: 15px; outline: none; margin-bottom: 14px;
+  }
+  .busca:focus { border-color: rgba(169,191,224,.5); }
+  .grade-nomes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .nome-btn {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px; text-align: left;
+    background: var(--glass); border: 1px solid var(--stroke-soft); border-radius: var(--radius-sm);
+    transition: background .2s, border-color .2s, transform .2s;
+  }
+  .nome-btn:hover, .nome-btn:focus-visible { background: var(--glass-strong); border-color: var(--stroke); transform: translateY(-1px); outline: none; }
+  .avatar {
+    flex: none; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center;
+    font-weight: 800; font-size: 13px; color: #0f1522;
+    background: linear-gradient(160deg, var(--accent-strong), var(--accent));
+  }
+  .nome-btn span:last-child { font-weight: 600; font-size: 14px; }
+  .vazio { color: var(--muted); text-align: center; padding: 16px; font-size: 14px; }
+
+  /* ---------- Painel ---------- */
+  #tela-painel { max-width: 980px; margin: 0 auto; padding: 18px 16px 140px; }
+  .topo {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 14px 12px 12px; position: sticky; top: 12px; z-index: 5; border-radius: 20px;
+  }
+  .topo-esq { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .topo-esq img { width: 46px; height: auto; }
+  .topo-esq small { display: block; color: var(--faint); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .topo-esq strong { display: block; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topo-dir { display: flex; gap: 8px; }
+  .btn-sec {
+    padding: 9px 14px; border-radius: 12px; border: 1px solid var(--stroke); background: var(--glass);
+    font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; transition: background .2s;
+  }
+  .btn-sec:hover { background: var(--glass-strong); }
+  .btn-sec svg { width: 15px; height: 15px; }
+
+  .resumo { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 14px; margin: 18px 0; }
+  .kpi { padding: 18px 20px; }
+  .kpi span { display: block; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+  .kpi strong { display: block; margin-top: 8px; font-size: clamp(20px, 3.4vw, 28px); font-weight: 800; letter-spacing: -.02em; }
+  .kpi em { display: block; font-style: normal; color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .kpi.destaque { background: linear-gradient(160deg, rgba(169,191,224,.16), rgba(169,191,224,.05)); border-color: rgba(169,191,224,.25); }
+  .kpi.destaque strong { color: var(--accent-strong); }
+
+  .barra-ferramentas { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .segmentado { display: inline-flex; padding: 4px; border-radius: 14px; gap: 4px; }
+  .segmentado button {
+    border: 0; background: transparent; padding: 9px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--muted);
+    transition: background .2s, color .2s;
+  }
+  .segmentado button[aria-pressed="true"] { background: rgba(255,255,255,.12); color: var(--text); }
+  .sel-tudo { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 14px; font-size: 14px; font-weight: 600; cursor: pointer; user-select: none; }
+
+  /* Caixas de seleção */
+  input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none; margin: 0; flex: none;
+    width: 21px; height: 21px; border-radius: 7px; cursor: pointer;
+    border: 1.5px solid rgba(255,255,255,.28); background: rgba(0,0,0,.15);
+    display: inline-grid; place-content: center; transition: background .15s, border-color .15s;
+  }
+  input[type="checkbox"]::before {
+    content: ''; width: 11px; height: 11px; transform: scale(0); transition: transform .12s;
+    background: #0f1522;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  }
+  input[type="checkbox"]:checked, input[type="checkbox"]:indeterminate { background: var(--accent); border-color: var(--accent); }
+  input[type="checkbox"]:checked::before { transform: scale(1); }
+  input[type="checkbox"]:indeterminate::before { transform: scale(1); clip-path: inset(40% 5% 40% 5% round 2px); }
+  input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+
+  .grupos { display: flex; flex-direction: column; gap: 14px; }
+  .grupo { overflow: hidden; }
+  .grupo-cab {
+    display: flex; align-items: center; gap: 14px; padding: 16px 18px; cursor: pointer; user-select: none;
+  }
+  .grupo-titulo { flex: 1; min-width: 0; }
+  .grupo-titulo strong { display: block; font-size: 16px; font-weight: 700; }
+  .grupo-titulo span { font-size: 13px; color: var(--muted); }
+  .grupo-valor { text-align: right; }
+  .grupo-valor strong { display: block; font-size: 16px; font-weight: 800; }
+  .grupo-valor span { font-size: 12px; color: var(--faint); }
+  .seta { width: 18px; height: 18px; color: var(--faint); transition: transform .25s; flex: none; }
+  .grupo.fechado .seta { transform: rotate(-90deg); }
+  .grupo.fechado .itens { display: none; }
+  .itens { border-top: 1px solid var(--stroke-soft); }
+  .item {
+    display: flex; align-items: center; gap: 14px; padding: 13px 18px; cursor: pointer;
+    border-bottom: 1px solid var(--stroke-soft); transition: background .15s, opacity .15s;
+  }
+  .item:last-child { border-bottom: 0; }
+  .item:hover { background: rgba(255,255,255,.03); }
+  .item.desmarcado { opacity: .5; }
+  .item-info { flex: 1; min-width: 0; }
+  .item-info strong { display: block; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+  .item-info span { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .etiqueta {
+    flex: none; font-size: 11px; font-weight: 700; padding: 5px 9px; border-radius: 8px;
+    background: rgba(255,255,255,.07); color: var(--muted); white-space: nowrap;
+  }
+  .item-valor { flex: none; font-weight: 700; font-size: 15px; min-width: 96px; text-align: right; }
+
+  /* Barra de pagamento */
+  .rodape {
+    position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+    width: min(948px, calc(100% - 32px)); z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 12px 12px 22px;
+    background: rgba(20, 26, 38, .62);
+  }
+  .rodape span { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .rodape strong { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .btn-pix {
+    border: 0; padding: 14px 22px; border-radius: 15px; font-weight: 800; font-size: 15px; color: #0f1522;
+    background: linear-gradient(160deg, var(--accent-strong), var(--accent));
+    display: inline-flex; align-items: center; gap: 10px; transition: transform .15s, opacity .2s;
+    box-shadow: 0 10px 30px -10px rgba(169,191,224,.5);
+  }
+  .btn-pix:hover { transform: translateY(-1px); }
+  .btn-pix:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-pix svg { width: 18px; height: 18px; }
+
+  /* Modal PIX */
+  .modal-fundo {
+    position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+    background: rgba(5, 7, 12, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .modal { width: min(440px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px; background: rgba(22, 28, 41, .72); }
+  .modal-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .modal-cab h2 { margin: 0; font-size: 18px; font-weight: 800; }
+  .fechar { border: 0; background: var(--glass); width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; }
+  .fechar svg { width: 16px; height: 16px; }
+  .modal-valor { margin: 14px 0 4px; font-size: 34px; font-weight: 800; letter-spacing: -.02em; color: var(--accent-strong); }
+  .modal-sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .abas { display: flex; padding: 4px; gap: 4px; border-radius: 14px; background: rgba(0,0,0,.2); margin-bottom: 16px; }
+  .abas button { flex: 1; border: 0; background: transparent; padding: 10px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--muted); }
+  .abas button[aria-selected="true"] { background: rgba(255,255,255,.12); color: var(--text); }
+  .qr-moldura { background: #fff; border-radius: 20px; padding: 10px; width: min(280px, 100%); margin: 0 auto; }
+  .qr-moldura svg { display: block; width: 100%; height: auto; }
+  .codigo {
+    width: 100%; min-height: 128px; resize: none; padding: 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--stroke); background: rgba(0,0,0,.25); color: var(--text);
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.5; word-break: break-all;
+  }
+  .acoes { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .acoes .btn-pix { justify-content: center; width: 100%; }
+  .chave {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 14px; border-radius: var(--radius-sm); background: rgba(0,0,0,.2); border: 1px solid var(--stroke-soft);
+  }
+  .chave span { font-size: 11px; color: var(--faint); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; display: block; }
+  .chave strong { font-size: 15px; }
+  .nota { font-size: 12.5px; color: var(--muted); text-align: center; margin: 16px 0 0; line-height: 1.5; }
+
+  .aviso {
+    position: fixed; left: 50%; top: 20px; transform: translate(-50%, -20px); opacity: 0; z-index: 30;
+    padding: 11px 18px; border-radius: 12px; font-size: 14px; font-weight: 600; pointer-events: none;
+    background: rgba(30, 38, 54, .85); border: 1px solid var(--stroke); transition: opacity .25s, transform .25s;
+  }
+  .aviso.visivel { opacity: 1; transform: translate(-50%, 0); }
+
+  .sem-dividas { padding: 40px 24px; text-align: center; }
+  .sem-dividas strong { display: block; font-size: 18px; margin-bottom: 6px; color: var(--ok); }
+  .sem-dividas span { color: var(--muted); font-size: 14px; }
+
+  @media (max-width: 680px) {
+    .resumo { grid-template-columns: 1fr 1fr; }
+    .resumo .kpi.destaque { grid-column: 1 / -1; order: -1; }
+    .topo-dir .rotulo { display: none; }
+    .etiqueta { display: none; }
+    .item { padding: 13px 14px; gap: 12px; }
+    .grupo-cab { padding: 15px 14px; }
+    .item-valor { min-width: 0; }
+    .rodape { padding-left: 16px; }
+    .rodape strong { font-size: 19px; }
+    .btn-pix { padding: 13px 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="fundo" aria-hidden="true"><span></span><span></span><span></span></div>
+
+<!-- Tela 1: escolha do nome -->
+<main id="tela-entrada">
+  <div class="marca">
+    <img src="assets/logo.png" alt="Esteves">
+    <h1>Central de Pagamentos</h1>
+    <p>Selecione seu nome para ver suas pendências</p>
+  </div>
+  <section class="cartao-nomes vidro">
+    <label for="busca">Quem é você?</label>
+    <input id="busca" class="busca" type="search" placeholder="Buscar nome…" autocomplete="off">
+    <div id="grade-nomes" class="grade-nomes"></div>
+  </section>
+</main>
+
+<!-- Tela 2: painel da pessoa -->
+<main id="tela-painel" class="oculto">
+  <header class="topo vidro">
+    <div class="topo-esq">
+      <img src="assets/logo.png" alt="">
+      <div><small>Pendências de</small><strong id="nome-pessoa"></strong></div>
+    </div>
+    <div class="topo-dir">
+      <button class="btn-sec" id="btn-link" title="Copiar link desta página">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+        <span class="rotulo">Copiar link</span>
+      </button>
+      <button class="btn-sec" id="btn-trocar" title="Trocar pessoa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>
+        <span class="rotulo">Trocar</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="resumo">
+    <div class="kpi vidro"><span>Total em aberto</span><strong id="kpi-total">—</strong><em id="kpi-total-sub"></em></div>
+    <div class="kpi vidro destaque"><span>Selecionado para pagar</span><strong id="kpi-sel">—</strong><em id="kpi-sel-sub"></em></div>
+    <div class="kpi vidro"><span>Período</span><strong id="kpi-periodo">—</strong><em id="kpi-periodo-sub"></em></div>
+  </section>
+
+  <div class="barra-ferramentas">
+    <div class="segmentado vidro" role="group" aria-label="Agrupar por">
+      <button data-modo="categoria" aria-pressed="true">Por categoria</button>
+      <button data-modo="mes" aria-pressed="false">Por mês</button>
+    </div>
+    <label class="sel-tudo vidro"><input type="checkbox" id="sel-tudo" checked> Selecionar tudo</label>
+  </div>
+
+  <section id="grupos" class="grupos"></section>
+</main>
+
+<footer id="rodape" class="rodape vidro oculto">
+  <div><span id="rodape-qtd">0 itens selecionados</span><strong id="rodape-total">R$ 0,00</strong></div>
+  <button class="btn-pix" id="btn-pagar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>
+    Pagar com PIX
+  </button>
+</footer>
+
+<!-- Modal de pagamento -->
+<div id="modal" class="modal-fundo oculto" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+  <div class="modal vidro">
+    <div class="modal-cab">
+      <h2 id="modal-titulo">Pagamento via PIX</h2>
+      <button class="fechar" id="btn-fechar" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-valor" id="modal-valor"></div>
+    <div class="modal-sub" id="modal-sub"></div>
+
+    <div class="abas" role="tablist">
+      <button role="tab" data-aba="qr" aria-selected="true">QR Code</button>
+      <button role="tab" data-aba="codigo" aria-selected="false">Copia e Cola</button>
+    </div>
+    <div id="aba-qr"><div class="qr-moldura" id="qr"></div></div>
+    <div id="aba-codigo" class="oculto"><textarea class="codigo" id="codigo-pix" readonly></textarea></div>
+
+    <div class="acoes">
+      <button class="btn-pix" id="btn-copiar-codigo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+        Copiar código PIX
+      </button>
+      <div class="chave">
+        <div><span>Chave PIX (celular)</span><strong id="chave-exibida"></strong></div>
+        <button class="btn-sec" id="btn-copiar-chave">Copiar chave</button>
+      </div>
+    </div>
+    <p class="nota">Abra o app do seu banco, escolha <b>Pix → Ler QR Code</b> ou <b>Pix Copia e Cola</b> e confira o valor antes de confirmar. Depois, envie o comprovante.</p>
+  </div>
+</div>
+
+<div id="aviso" class="aviso" role="status" aria-live="polite"></div>
+
+<script src="assets/dados.js"></script>
+<script src="assets/qrcode.js"></script>
+<script src="assets/pix.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ===== Configuração =====
+  var CONFIG = {
+    chavePix: '+5531971480692',        // chave de celular no formato exigido pelo PIX
+    chaveExibicao: '(31) 97148-0692',
+    nomeRecebedor: 'ESTEVES',          // até 25 caracteres, sem acento
+    cidadeRecebedor: 'RIBEIRAO NEVES', // até 15 caracteres, sem acento
+    ocultarPessoas: []                 // ex.: ['DARLITON'] para não listar alguém na tela inicial
+  };
+
+  var MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  var MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+  var dados = (window.DIVIDAS || []).map(function (d) {
+    return Object.assign({}, d, { valor: Math.abs(Number(d.valor) || 0) });
+  });
+
+  var estado = { pessoa: null, itens: [], marcados: new Set(), modo: 'categoria', fechados: new Set() };
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ===== Utilitários =====
+  function moeda(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function slug(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+  function nomeBonito(s) { return String(s).toLowerCase().replace(/(^|\s)\S/g, function (c) { return c.toUpperCase(); }); }
+  function iniciais(s) { var p = String(s).trim().split(/\s+/); return (p[0][0] + (p[1] ? p[1][0] : (p[0][1] || ''))).toUpperCase(); }
+  function mesLongo(m) { var p = m.split('-'); return MESES[+p[1] - 1] + ' de ' + p[0]; }
+  function mesCurto(m) { var p = m.split('-'); return MESES_CURTOS[+p[1] - 1] + '/' + p[0].slice(2); }
+  function soma(lista) { return Math.round(lista.reduce(function (a, d) { return a + d.valor; }, 0) * 100) / 100; }
+  function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
+
+  var avisoTimer;
+  function avisar(msg) {
+    var el = $('aviso'); el.textContent = msg; el.classList.add('visivel');
+    clearTimeout(avisoTimer); avisoTimer = setTimeout(function () { el.classList.remove('visivel'); }, 1800);
+  }
+  function copiar(texto, msg) {
+    var ok = function () { avisar(msg); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(texto).then(ok, function () { copiaManual(texto); ok(); });
+    } else { copiaManual(texto); ok(); }
+  }
+  function copiaManual(texto) {
+    var t = document.createElement('textarea'); t.value = texto; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch (e) {} t.remove();
+  }
+
+  // ===== Tela de entrada =====
+  var pessoas = Array.from(new Set(dados.map(function (d) { return d.pessoa; })))
+    .filter(function (p) { return CONFIG.ocultarPessoas.indexOf(p) < 0; })
+    .sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+
+  function desenharNomes(filtro) {
+    var f = slug(filtro || '');
+    var lista = pessoas.filter(function (p) { return slug(p).indexOf(f) >= 0; });
+    $('grade-nomes').innerHTML = lista.length ? lista.map(function (p) {
+      return '<button class="nome-btn" data-pessoa="' + esc(p) + '"><span class="avatar">' + esc(iniciais(p)) +
+        '</span><span>' + esc(nomeBonito(p)) + '</span></button>';
+    }).join('') : '<div class="vazio">' + (dados.length ? 'Nenhum nome encontrado.' : 'Base de dados não carregada.') + '</div>';
+  }
+  $('busca').addEventListener('input', function (e) { desenharNomes(e.target.value); });
+  $('grade-nomes').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pessoa]'); if (b) abrirPessoa(b.getAttribute('data-pessoa'), true);
+  });
+
+  // ===== Painel =====
+  function abrirPessoa(pessoa, atualizarUrl) {
+    estado.pessoa = pessoa;
+    estado.itens = dados.filter(function (d) { return d.pessoa === pessoa; })
+      .sort(function (a, b) { return a.mes.localeCompare(b.mes) || a.id - b.id; });
+    estado.marcados = new Set(estado.itens.map(function (d) { return d.id; }));
+    estado.fechados = new Set();
+    if (atualizarUrl) history.pushState({ pessoa: pessoa }, '', '?pessoa=' + slug(pessoa));
+    $('nome-pessoa').textContent = nomeBonito(pessoa);
+    document.title = 'Pagamentos · ' + nomeBonito(pessoa);
+    $('tela-entrada').classList.add('oculto');
+    $('tela-painel').classList.remove('oculto');
+    $('rodape').classList.toggle('oculto', !estado.itens.length);
+    window.scrollTo(0, 0);
+    desenharPainel();
+  }
+  function voltarEntrada(atualizarUrl) {
+    estado.pessoa = null;
+    if (atualizarUrl) history.pushState({}, '', location.pathname);
+    document.title = 'Central de Pagamentos · Esteves';
+    $('tela-painel').classList.add('oculto');
+    $('rodape').classList.add('oculto');
+    $('tela-entrada').classList.remove('oculto');
+    $('busca').value = ''; desenharNomes('');
+  }
+
+  function agrupar() {
+    var mapa = new Map();
+    estado.itens.forEach(function (d) {
+      var k = estado.modo === 'mes' ? d.mes : d.categoria;
+      if (!mapa.has(k)) mapa.set(k, []);
+      mapa.get(k).push(d);
+    });
+    var grupos = Array.from(mapa, function (e) { return { chave: e[0], itens: e[1], total: soma(e[1]) }; });
+    if (estado.modo === 'mes') grupos.sort(function (a, b) { return a.chave.localeCompare(b.chave); });
+    else grupos.sort(function (a, b) { return b.total - a.total; });
+    return grupos;
+  }
+
+  var SETA = '<svg class="seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+
+  function desenharPainel() {
+    var itens = estado.itens;
+    if (!itens.length) {
+      $('grupos').innerHTML = '<div class="sem-dividas vidro"><strong>Tudo em dia!</strong><span>Não há pendências para você.</span></div>';
+    } else {
+      $('grupos').innerHTML = agrupar().map(function (g) {
+        var chaveG = estado.modo + ':' + g.chave;
+        var titulo = estado.modo === 'mes' ? mesLongo(g.chave) : g.chave;
+        var linhas = g.itens.map(function (d) {
+          var etiqueta = estado.modo === 'mes' ? d.categoria : mesCurto(d.mes);
+          return '<div class="item" data-id="' + d.id + '">' +
+            '<input type="checkbox" aria-label="Selecionar ' + esc(d.descricao) + '" data-id="' + d.id + '">' +
+            '<div class="item-info"><strong>' + esc(d.descricao) + '</strong><span>' + esc(d.local) + '</span></div>' +
+            '<span class="etiqueta">' + esc(etiqueta) + '</span>' +
+            '<span class="item-valor">' + moeda(d.valor) + '</span></div>';
+        }).join('');
+        return '<article class="grupo vidro' + (estado.fechados.has(chaveG) ? ' fechado' : '') + '" data-grupo="' + esc(chaveG) + '">' +
+          '<div class="grupo-cab">' +
+          '<input type="checkbox" aria-label="Selecionar grupo ' + esc(titulo) + '" data-grupo-chk>' +
+          '<div class="grupo-titulo"><strong>' + esc(titulo) + '</strong><span>' + plural(g.itens.length, 'item', 'itens') + '</span></div>' +
+          '<div class="grupo-valor"><strong>' + moeda(g.total) + '</strong><span data-grupo-sel></span></div>' + SETA +
+          '</div><div class="itens">' + linhas + '</div></article>';
+      }).join('');
+    }
+    var meses = Array.from(new Set(itens.map(function (d) { return d.mes; }))).sort();
+    $('kpi-total').textContent = moeda(soma(itens));
+    $('kpi-total-sub').textContent = plural(itens.length, 'lançamento', 'lançamentos');
+    $('kpi-periodo').textContent = meses.length ? (meses.length === 1 ? mesCurto(meses[0]) : mesCurto(meses[0]) + ' – ' + mesCurto(meses[meses.length - 1])) : '—';
+    $('kpi-periodo-sub').textContent = meses.length ? plural(meses.length, 'mês', 'meses') : '';
+    atualizarSelecao();
+  }
+
+  function atualizarSelecao() {
+    var sel = estado.itens.filter(function (d) { return estado.marcados.has(d.id); });
+    var total = soma(sel), n = sel.length, todos = estado.itens.length;
+    document.querySelectorAll('#grupos .item').forEach(function (el) {
+      var on = estado.marcados.has(+el.getAttribute('data-id'));
+      el.querySelector('input').checked = on;
+      el.classList.toggle('desmarcado', !on);
+    });
+    document.querySelectorAll('#grupos .grupo').forEach(function (g) {
+      var ids = Array.from(g.querySelectorAll('.item')).map(function (el) { return +el.getAttribute('data-id'); });
+      var marc = ids.filter(function (id) { return estado.marcados.has(id); });
+      var chk = g.querySelector('[data-grupo-chk]');
+      chk.checked = marc.length === ids.length; chk.indeterminate = marc.length > 0 && marc.length < ids.length;
+      var valorSel = soma(estado.itens.filter(function (d) { return marc.indexOf(d.id) >= 0; }));
+      g.querySelector('[data-grupo-sel]').textContent = marc.length === ids.length ? 'tudo selecionado' : (marc.length ? moeda(valorSel) + ' selecionado' : 'nada selecionado');
+    });
+    var mestre = $('sel-tudo');
+    mestre.checked = n === todos && todos > 0; mestre.indeterminate = n > 0 && n < todos;
+    $('kpi-sel').textContent = moeda(total);
+    $('kpi-sel-sub').textContent = n + ' de ' + plural(todos, 'item', 'itens');
+    $('rodape-total').textContent = moeda(total);
+    $('rodape-qtd').textContent = n === 0 ? 'Nenhum item selecionado' : plural(n, 'item selecionado', 'itens selecionados');
+    $('btn-pagar').disabled = total <= 0;
+  }
+
+  $('grupos').addEventListener('click', function (e) {
+    var item = e.target.closest('.item');
+    var cab = e.target.closest('.grupo-cab');
+    if (item) {
+      var id = +item.getAttribute('data-id');
+      if (estado.marcados.has(id)) estado.marcados.delete(id); else estado.marcados.add(id);
+      atualizarSelecao();
+    } else if (cab) {
+      var grupo = cab.closest('.grupo');
+      if (e.target.hasAttribute('data-grupo-chk')) {
+        var ids = Array.from(grupo.querySelectorAll('.item')).map(function (el) { return +el.getAttribute('data-id'); });
+        var tudo = ids.every(function (id) { return estado.marcados.has(id); });
+        ids.forEach(function (id) { if (tudo) estado.marcados.delete(id); else estado.marcados.add(id); });
+        atualizarSelecao();
+      } else {
+        var k = grupo.getAttribute('data-grupo');
+        if (estado.fechados.has(k)) estado.fechados.delete(k); else estado.fechados.add(k);
+        grupo.classList.toggle('fechado');
+      }
+    }
+  });
+  $('sel-tudo').addEventListener('change', function (e) {
+    estado.marcados = e.target.checked ? new Set(estado.itens.map(function (d) { return d.id; })) : new Set();
+    atualizarSelecao();
+  });
+  document.querySelectorAll('.segmentado button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      estado.modo = b.getAttribute('data-modo');
+      document.querySelectorAll('.segmentado button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      desenharPainel();
+    });
+  });
+  $('btn-trocar').addEventListener('click', function () { voltarEntrada(true); });
+  $('btn-link').addEventListener('click', function () {
+    var url = location.origin + location.pathname + '?pessoa=' + slug(estado.pessoa);
+    copiar(url, 'Link copiado');
+  });
+
+  // ===== PIX =====
+  var codigoAtual = '';
+  function abrirPix() {
+    var sel = estado.itens.filter(function (d) { return estado.marcados.has(d.id); });
+    var total = soma(sel);
+    if (total <= 0) return;
+    var hoje = new Date();
+    var txid = slug(estado.pessoa).replace(/-/g, '').toUpperCase().slice(0, 15) +
+      String(hoje.getFullYear()).slice(2) + String(hoje.getMonth() + 1).padStart(2, '0') + String(hoje.getDate()).padStart(2, '0');
+    codigoAtual = PIX.payload({
+      chave: CONFIG.chavePix, nome: CONFIG.nomeRecebedor, cidade: CONFIG.cidadeRecebedor,
+      valor: total, txid: txid
+    });
+    $('modal-valor').textContent = moeda(total);
+    $('modal-sub').textContent = nomeBonito(estado.pessoa) + ' · ' + plural(sel.length, 'item', 'itens');
+    $('qr').innerHTML = QR.toSvg(codigoAtual, { ecl: 'M', border: 2, dark: '#0d1220' });
+    $('codigo-pix').value = codigoAtual;
+    $('chave-exibida').textContent = CONFIG.chaveExibicao;
+    mostrarAba('qr');
+    $('modal').classList.remove('oculto');
+    document.body.style.overflow = 'hidden';
+    $('btn-fechar').focus();
+  }
+  function fecharPix() { $('modal').classList.add('oculto'); document.body.style.overflow = ''; }
+  function mostrarAba(aba) {
+    document.querySelectorAll('.abas button').forEach(function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-aba') === aba)); });
+    $('aba-qr').classList.toggle('oculto', aba !== 'qr');
+    $('aba-codigo').classList.toggle('oculto', aba !== 'codigo');
+  }
+  document.querySelectorAll('.abas button').forEach(function (b) {
+    b.addEventListener('click', function () { mostrarAba(b.getAttribute('data-aba')); });
+  });
+  $('btn-pagar').addEventListener('click', abrirPix);
+  $('btn-fechar').addEventListener('click', fecharPix);
+  $('modal').addEventListener('click', function (e) { if (e.target === $('modal')) fecharPix(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fecharPix(); });
+  $('btn-copiar-codigo').addEventListener('click', function () { copiar(codigoAtual, 'Código PIX copiado'); });
+  $('btn-copiar-chave').addEventListener('click', function () { copiar(CONFIG.chavePix, 'Chave PIX copiada'); });
+  $('codigo-pix').addEventListener('focus', function (e) { e.target.select(); });
+
+  // ===== Início / link direto (?pessoa=nome) =====
+  function rotear() {
+    var alvo = new URLSearchParams(location.search).get('pessoa');
+    var p = alvo && dados.map(function (d) { return d.pessoa; }).find(function (x) { return slug(x) === slug(alvo); });
+    if (p) abrirPessoa(p, false); else voltarEntrada(false);
+  }
+  window.addEventListener('popstate', rotear);
+  rotear();
+})();
+</script>
+</body>
+</html>
